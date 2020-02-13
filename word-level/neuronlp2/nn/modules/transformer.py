@@ -27,6 +27,19 @@ class AttEncoderLayer(nn.Module):
         enc_output = self.pos_ffn(enc_output)
         return enc_output, enc_slf_attn
 
+class GALayer(nn.Module):
+    ''' Compose with two layers '''
+
+    def __init__(self, n_head, d_graph, p_gcn):
+        super(GALayer, self).__init__()
+        self.slf_attn = GAMultiHeadAttention(
+            n_head, d_graph, dropout=p_gcn)
+
+    def forward(self, enc_input, slf_attn_mask=None):
+        enc_output, enc_slf_attn = self.slf_attn(
+            enc_input, enc_input, enc_input, attn_mask=slf_attn_mask)
+        return enc_output, enc_slf_attn
+
 
 ''' Define the sublayers in encoder/decoder layer '''
 
@@ -211,6 +224,71 @@ class MultiHeadAttention(nn.Module):
 
         return outputs, attns
 
+class GAMultiHeadAttention(nn.Module):
+    ''' Multi-Head Attention module '''
+
+    def __init__(self, n_head, d_model, dropout=0.1):
+        super(GAMultiHeadAttention, self).__init__()
+
+        self.n_head = n_head
+        self.d_model = d_model
+
+        self.w_qs = nn.Parameter(torch.FloatTensor(n_head, d_model, d_model))
+
+        self.attention = ScaledDotProductAttention(d_model)
+        #self.layer_norm = LayerNormalization(d_model)
+        self.proj = BottleLinear(n_head * d_model, d_model)
+        self.proj2 = BottleLinear(2 * d_model, d_model)
+
+        self.dropout = nn.Dropout(dropout)
+        init.xavier_normal_(self.w_qs)
+
+    def forward(self, q, k, v, attn_mask=None):
+        n_head = self.n_head
+
+        residual = q 
+        
+        mb_size, len_q, d_model = q.size()
+        mb_size, len_k, d_model = k.size()
+        mb_size, len_v, d_value = v.size()
+
+        # get v_s
+        #v_s = v.repeat(n_head, 1, 1)  # (n_head*mb_size) x len_v x d_value
+        #if self.use_residual:
+        v_s = v.repeat(n_head, 1, 1).view(n_head, -1, d_value)  # n_head x (mb_size*len_v) x d_model
+        # v_s = torch.bmm(v_s, self.w_vs).view(-1, len_v, d_model)  # (n_head*mb_size) x len_v x d_v
+        v_s = v_s.view(-1, len_v, d_model)  # (n_head*mb_size) x len_v x d_v
+
+        # treat as a (n_head) size batch
+        q_s = q.repeat(n_head, 1, 1).view(n_head, -1, d_model)  # n_head x (mb_size*len_q) x d_model
+        k_s = k.repeat(n_head, 1, 1).view(n_head, -1, d_model)  # n_head x (mb_size*len_k) x d_model
+
+        # treat the result as a (n_head * mb_size) size batch
+        q_s = torch.bmm(q_s, self.w_qs).view(-1, len_q, d_model)  # (n_head*mb_size) x len_q x d_k
+        #k_s = torch.bmm(k_s, self.w_ks).view(-1, len_k, d_model)  # (n_head*mb_size) x len_k x d_k
+        k_s = k_s.view(-1, len_k, d_model)  # (n_head*mb_size) x len_k x d_k
+
+        # perform attention, result size = (n_head * mb_size) x len_q x d_v
+        attn_mask = attn_mask.repeat(n_head, 1, 1) if attn_mask is not None else attn_mask
+        outputs, attns = self.attention(q_s, k_s, v_s, attn_mask=attn_mask)
+
+        # if self.use_residual:
+        # back to original mb_size batch, result size = mb_size x len_q x (n_head*d_v)
+        outputs = torch.cat(torch.split(outputs, mb_size, dim=0), dim=-1)
+        # project back to residual size
+        outputs = self.proj(outputs)
+        # else:
+        #     outputs = outputs.mean(0, True)
+        #     attns = attns.mean(0, True)
+
+        outputs = self.dropout(outputs)
+
+        # if self.use_residual:
+        #     outputs = outputs + residual
+        outputs = torch.cat([outputs, residual], dim=-1)
+        outputs = self.proj2(outputs)
+
+        return outputs, attns
 
 class PositionwiseFeedForward(nn.Module):
     ''' A two-feed-forward-layer module '''

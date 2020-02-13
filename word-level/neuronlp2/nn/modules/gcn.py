@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .transformer import AttEncoderLayer, get_attn_padding_mask, get_attn_adj_mask, \
     LayerNormalization, PositionEncoder, MultiHeadAttention, ScaledDotProductAttention, \
-    WeightedScaledDotProductAttention, ConcatProductAttention
+    WeightedScaledDotProductAttention, ConcatProductAttention, GALayer
 from .._functions import GELU
 
 from efficiency.log import show_var
@@ -11,7 +11,7 @@ from efficiency.log import show_var
 
 class GCN(nn.Module):
     def __init__(self, gcn_model, n_gcn_layer, d_graph, d_in, p_gcn,
-                 n_head=4, d_inner_hid=256, d_k=32, d_v=32,
+                 n_head=4, d_inner_hid=256, d_k=32, d_v=32, ga_heads=0,
                  position_enc_mode="lookup", globalnode=False,
                  adj_attn_type=''):
         super(GCN, self).__init__()
@@ -37,7 +37,7 @@ class GCN(nn.Module):
 
         self.position_enc = PositionEncoder(d_graph, mode=position_enc_mode)
 
-        self.gcn_layers = nn.ModuleList([
+        layers = [
             GNN_Layer(d_graph, d_graph, p_gcn[1], n_graph=n_graph)
             if gcn_model in ['gnn', 'gnn1']
 
@@ -52,7 +52,11 @@ class GCN(nn.Module):
 
             for _ in range(n_gcn_layer)
 
-        ])
+        ]
+        self.ga_heads = ga_heads
+        if ga_heads > 0:
+            self.ga_layer = GALayer(ga_heads, d_graph, p_gcn[1])
+        self.gcn_layers = nn.ModuleList(layers)
 
     def forward(self, h_gcn, adjs, doc_word_mask, return_edge=False, show_net=False):
 
@@ -103,6 +107,10 @@ class GCN(nn.Module):
                 print(">gcn")
 
             h_gcn, edge_weig = layer(h_gcn, *opts)
+            if return_edge:
+                edge_weights += [edge_weig]
+        if self.ga_heads > 0:
+            h_gcn, edge_weig = self.ga_layer(h_gcn, slf_attn_pad_mask)
             if return_edge:
                 edge_weights += [edge_weig]
 

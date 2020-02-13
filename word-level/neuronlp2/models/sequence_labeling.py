@@ -416,7 +416,7 @@ class BiRecurrentConvGraphCRF(BiRecurrentConvCRF):
                  hidden_size, num_layers, num_labels,
                  gcn_model, n_head, d_graph, d_inner_hid, d_k, d_v, p_gcn, n_gcn_layer,
                  d_out, post_lstm=1, mask_singles=False, position_enc_mode="lookup", adj_attn='',
-                 adj_loss_lambda=0,
+                 adj_loss_lambda=0, ga_heads=0,
                  char_method='cnn', tag_space=0, embedd_word=None, embedd_char=None, use_elmo=False, p_em_vec=0.0,
                  p_em=0.33, p_in=0.33, p_tag=0.5, p_rnn=(0.5, 0.5, 0.5), p_rnn2=(0.5, 0.5, 0.5), bigram=False,
                  initializer=None):
@@ -433,7 +433,7 @@ class BiRecurrentConvGraphCRF(BiRecurrentConvCRF):
         self.mask_singles = mask_singles
 
         self.gcn = GCN(gcn_model, n_gcn_layer, d_graph, hidden_size, p_gcn,
-                       n_head=n_head, d_inner_hid=d_inner_hid, d_k=d_k, d_v=d_v,
+                       n_head=n_head, d_inner_hid=d_inner_hid, d_k=d_k, d_v=d_v, ga_heads=ga_heads,
                        position_enc_mode=position_enc_mode, globalnode=False, adj_attn_type=adj_attn)
 
         d_rnn2_in = d_graph if n_gcn_layer > 0 else hidden_size

@@ -70,6 +70,7 @@ def main():
     parser.add_argument('--char_dim', type=int, default=30, help='Dimension of Character embeddings')
     parser.add_argument('--tag_space', type=int, default=0, help='Dimension of tag space')
     parser.add_argument('--num_layers', type=int, default=1, help='Number of layers of RNN')
+    parser.add_argument('--ga_heads', type=int, default=0, help='Number of GA heads')
     parser.add_argument('--dropout', choices=['std', 'gcn'], help='Dropout method',
                         default='gcn')
     parser.add_argument('--p_em', type=float, default=0.33, help='dropout rate for input embeddings')
@@ -179,6 +180,7 @@ def main():
     p_em_vec = 0.
     graph_model = 'gnn'
     coref_edge_filt = ''
+    ga_heads = args.ga_heads
 
     learning_rate_gcn = args.learning_rate_gcn
     gcn_warmup = args.gcn_warmup
@@ -301,14 +303,14 @@ def main():
     if dropout == 'gcn':
         network = BiRecurrentConvGraphCRF(embedd_dim, word_alphabet.size(), char_dim, char_alphabet.size(),
                                           char_hidden_size, window, mode, encoder_mode, hidden_size, num_layers,
-                                          num_labels,
+                                          num_labels, 
                                           graph_model, n_head, d_graph, d_inner_hid, d_k, d_v, p_gcn, n_gcn_layer,
                                           d_out, post_lstm=post_lstm, mask_singles=mask_singles,
                                           position_enc_mode=position_enc_mode, adj_attn=adj_attn,
                                           adj_loss_lambda=adj_loss_lambda,
                                           tag_space=tag_space, embedd_word=word_table,
                                           use_elmo=use_elmo, p_em_vec=p_em_vec, p_em=p_em, p_in=p_in, p_tag=p_tag,
-                                          p_rnn=p_rnn, p_rnn2=p_rnn2,
+                                          p_rnn=p_rnn, p_rnn2=p_rnn2, ga_heads=ga_heads,
                                           bigram=bigram, initializer=initializer)
 
     elif dropout == 'std':
