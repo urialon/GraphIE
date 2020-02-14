@@ -110,9 +110,9 @@ class GCN(nn.Module):
             if return_edge:
                 edge_weights += [edge_weig]
         if self.ga_heads > 0:
-            h_gcn, edge_weig = self.ga_layer(h_gcn, slf_attn_pad_mask)
-            if return_edge:
-                edge_weights += [edge_weig]
+            h_gcn = self.ga_layer(h_gcn, doc_word_mask)
+            # if return_edge:
+            #     edge_weights += [edge_weig]
 
         h_gcn = h_gcn.view(batch_size, n_node, -1)
 
