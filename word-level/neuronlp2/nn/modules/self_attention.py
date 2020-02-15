@@ -12,6 +12,7 @@ class SelfAttention(torch.nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.q_layer = torch.nn.Linear(model_dim, model_dim * self.num_heads, bias=False)
         self.out_layer = torch.nn.Linear(model_dim * self.num_heads, model_dim, bias=False)
+        self.out_layer2 = torch.nn.Linear(model_dim * 2, model_dim, bias=False)
         self.relu = torch.nn.ReLU()
         self.softmax = torch.nn.Softmax(dim=-1)
         self.dropout = torch.nn.Dropout(1- dropout_keep_prob)
@@ -26,6 +27,9 @@ class SelfAttention(torch.nn.Module):
         outputs = self.relu(outputs)  # (batch, max_contexts, model_dim)
 
         outputs = self.dropout(outputs)
+        outputs = torch.cat([outputs, batched_inputs], dim=-1) # (batch, max_contexts, 2 * model_dim)
+        outputs = self.out_layer2(outputs) # (batch, max_contexts, model_dim)c
+        outputs = self.relu(outputs)  # (batch, max_contexts, model_dim)
         return outputs
 
     def _linear_projection(self, batched_inputs):
