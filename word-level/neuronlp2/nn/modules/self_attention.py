@@ -62,4 +62,4 @@ class SelfAttention(torch.nn.Module):
         # outputs: (batch, num_heads, max_contexts, value_dim)
         max_contexts = outputs.size()[2]
         tensor = outputs.transpose(1, 2)  # [batch, max_contexts, num_heads, value_dim]
-        return tensor.view([-1, max_contexts, self.model_dim * self.num_heads])
+        return tensor.contiguous().view([-1, max_contexts, self.model_dim * self.num_heads])
