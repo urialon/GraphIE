@@ -4,6 +4,7 @@ import torch.nn.init as init
 import numpy as np
 
 from neuronlp2.nn.modules.self_attention import SelfAttention
+from neuronlp2.nn.modules.self_attention_transformer import TransformerSelfAttention
 from .._functions import GELU
 
 from efficiency.log import show_var
@@ -34,7 +35,7 @@ class GALayer(nn.Module):
 
     def __init__(self, n_head, d_graph, p_gcn):
         super(GALayer, self).__init__()
-        self.slf_attn = SelfAttention(
+        self.slf_attn = TransformerSelfAttention(
             n_head, d_graph, dropout_keep_prob=1-p_gcn)
 
     def forward(self, enc_input, slf_attn_mask=None):
